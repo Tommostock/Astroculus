@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌌 Space Observatory Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Variables ───────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --void: #03020a;
+    --deep: #07051a;
+    --panel: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --star: #ffffff;
+    --nebula: #c084fc;
+    --nebula2: #818cf8;
+    --gold: #fbbf24;
+    --mars: #f97316;
+    --green: #34d399;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--void);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Starfield ───────────────────────────────────────────────── */
+  #starfield {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 20% 20%, #0d0628 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, #0a1628 0%, transparent 60%),
+                var(--void);
+  }
+  .star {
+    position: absolute; border-radius: 50%; background: white;
+    animation: twinkle var(--d) ease-in-out infinite alternate;
+    opacity: var(--o);
+  }
+  @keyframes twinkle { to { opacity: calc(var(--o) * 0.2); transform: scale(0.5); } }
+
+  /* ── Layout ──────────────────────────────────────────────────── */
+  .page { position: relative; z-index: 1; }
+
+  /* ── Header ──────────────────────────────────────────────────── */
+  header {
+    padding: 2rem 2rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, rgba(192,132,252,0.06) 0%, transparent 100%);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+  }
+  .logo { display: flex; align-items: center; gap: 1rem; }
+  .logo-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: linear-gradient(135deg, #7c3aed, #1e40af);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+    box-shadow: 0 0 30px rgba(124,58,237,0.4);
+  }
+  .logo-text h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+  .logo-text p { font-size: 0.75rem; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+    padding: 6px 14px; border-radius: 100px; font-size: 0.75rem;
+    font-family: var(--font-mono); color: var(--green);
+  }
+  .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+           animation: pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(52,211,153,0.4); }
+                     50% { opacity:0.7; box-shadow:0 0 0 6px rgba(52,211,153,0); } }
+
+  /* ── NASA API Bar ────────────────────────────────────────────── */
+  .api-bar {
+    background: rgba(251,191,36,0.06); border-bottom: 1px solid rgba(251,191,36,0.15);
+    padding: 12px 2rem; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .api-bar label { font-size: 0.72rem; font-family: var(--font-mono); color: var(--gold); text-transform: uppercase; letter-spacing: 0.1em; }
+  .api-bar input {
+    flex: 1; min-width: 200px; background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 14px; border-radius: 8px; font-family: var(--font-mono); font-size: 0.82rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .api-bar input:focus { border-color: var(--nebula); }
+  .btn {
+    padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer;
+    font-family: var(--font-display); font-weight: 700; font-size: 0.82rem;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: linear-gradient(135deg, #7c3aed, #2563eb); color: white; }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(124,58,237,0.4); }
+  .btn-primary:active { transform: none; }
+  .btn-sm { padding: 6px 14px; font-size: 0.75rem; }
+
+  /* ── Main Layout ─────────────────────────────────────────────── */
+  main { max-width: 1300px; margin: 0 auto; padding: 2rem; }
+
+  /* ── Stat Cards ──────────────────────────────────────────────── */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 1.25rem 1.5rem; position: relative; overflow: hidden;
+    animation: fadeUp 0.5s ease both; animation-delay: var(--delay, 0s);
+  }
+  .stat-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: var(--accent, linear-gradient(90deg, var(--nebula), var(--nebula2)));
+  }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(16px); } to { opacity:1; transform: none; } }
+  .stat-value { font-size: 2rem; font-weight: 800; color: var(--star); line-height: 1; }
+  .stat-label { font-size: 0.72rem; color: var(--muted); font-family: var(--font-mono); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ── Section ─────────────────────────────────────────────────── */
+  .section { margin-bottom: 2.5rem; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1rem; }
+  .section-title { font-size: 0.72rem; font-family: var(--font-mono); color: var(--nebula); text-transform: uppercase; letter-spacing: 0.15em; }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* ── IOTD ────────────────────────────────────────────────────── */
+  .iotd-card {
+    background: var(--panel); border: 1px solid rgba(251,191,36,0.2);
+    border-radius: 20px; overflow: hidden; display: flex; flex-wrap: wrap;
+    animation: fadeUp 0.6s ease 0.1s both;
+    box-shadow: 0 0 60px rgba(251,191,36,0.05);
+  }
+  .iotd-image-wrap {
+    width: 360px; min-height: 260px; flex-shrink: 0; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, #1a0d3a, #0d1a38);
+  }
+  .iotd-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s ease; }
+  .iotd-image-wrap:hover img { transform: scale(1.04); }
+  .iotd-image-wrap .no-img { width:100%; height:100%; min-height:260px; display:flex; align-items:center; justify-content:center; font-size:4rem; }
+  .iotd-badge {
+    position: absolute; top: 12px; left: 12px;
+    background: linear-gradient(135deg, #92400e, #b45309);
+    color: var(--gold); font-size: 0.65rem; font-family: var(--font-mono);
+    padding: 4px 10px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.1em;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .iotd-body { flex: 1; padding: 1.75rem; min-width: 0; }
+  .iotd-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+  .tag {
+    background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+    color: var(--muted); font-size: 0.68rem; font-family: var(--font-mono);
+    padding: 3px 10px; border-radius: 100px; white-space: nowrap;
+  }
+  .tag.accent { background: rgba(192,132,252,0.12); border-color: rgba(192,132,252,0.3); color: var(--nebula); }
+  .iotd-title { font-size: 1.5rem; font-weight: 800; line-height: 1.25; margin-bottom: 0.75rem; }
+  .iotd-caption { font-size: 0.85rem; color: var(--muted); line-height: 1.7; }
+  .score-bar-wrap { margin-top: 1.25rem; }
+  .score-bar-label { display: flex; justify-content: space-between; font-size: 0.7rem; font-family: var(--font-mono); color: var(--muted); margin-bottom: 6px; }
+  .score-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--nebula2), var(--nebula)); transition: width 1.2s cubic-bezier(0.16,1,0.3,1); }
+  .iotd-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 1rem;
+               color: var(--nebula); font-size: 0.8rem; text-decoration: none; font-family: var(--font-mono);
+               transition: gap 0.2s; }
+  .iotd-link:hover { gap: 10px; }
+
+  /* ── Image Grid ──────────────────────────────────────────────── */
+  .image-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .img-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    cursor: pointer; animation: fadeUp 0.5s ease both; animation-delay: var(--d, 0s);
+  }
+  .img-card:hover { transform: translateY(-4px); border-color: rgba(192,132,252,0.3); box-shadow: 0 16px 48px rgba(0,0,0,0.4); }
+  .img-thumb { width: 100%; height: 180px; object-fit: cover; background: linear-gradient(135deg,#1a0d3a,#0d1a38); display: block; }
+  .img-thumb-placeholder { width:100%; height:180px; background: linear-gradient(135deg,#1a0d3a,#0d1a38); display:flex; align-items:center; justify-content:center; font-size:2.5rem; }
+  .img-body { padding: 1rem; }
+  .img-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:0.5rem; }
+  .img-title { font-size: 0.88rem; font-weight: 700; line-height: 1.3; flex:1; }
+  .score-badge {
+    background: rgba(192,132,252,0.15); border: 1px solid rgba(192,132,252,0.3);
+    color: var(--nebula); font-size: 0.65rem; font-family: var(--font-mono);
+    padding: 2px 8px; border-radius: 100px; white-space: nowrap; flex-shrink: 0;
+  }
+  .img-mission { font-size: 0.7rem; color: var(--muted); font-family: var(--font-mono); margin-bottom: 0.5rem; }
+  .img-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; }
+  .category-dot { display: flex; align-items: center; gap: 5px; font-size: 0.68rem; color: var(--muted); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .img-date { font-size: 0.65rem; color: var(--muted); font-family: var(--font-mono); }
+
+  /* ── Mission Breakdown ───────────────────────────────────────── */
+  .mission-table { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  .mission-row { display: flex; align-items: center; gap: 1rem; padding: 0.9rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .mission-row:last-child { border-bottom: none; }
+  .mission-name { min-width: 220px; font-size: 0.82rem; font-weight: 700; }
+  .mission-bar-wrap { flex: 1; background: rgba(255,255,255,0.05); border-radius: 4px; height: 8px; overflow: hidden; }
+  .mission-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--nebula2), var(--nebula)); transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+  .mission-count { font-size: 0.75rem; font-family: var(--font-mono); color: var(--muted); min-width: 24px; text-align: right; }
+
+  /* ── Modal ───────────────────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center;
+    padding: 1rem; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: #0d0b1e; border: 1px solid var(--border); border-radius: 20px;
+    max-width: 680px; width: 100%; max-height: 90vh; overflow-y: auto;
+    transform: scale(0.95); transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 16px 16px 0 0; }
+  .modal-body { padding: 1.5rem; }
+  .modal-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 0.75rem; }
+  .modal-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+  .modal-caption { font-size: 0.85rem; color: var(--muted); line-height: 1.75; }
+  .modal-close { float: right; background: rgba(255,255,255,0.08); border: none; color: var(--text); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+  .modal-close:hover { background: rgba(255,255,255,0.15); }
+  .modal-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 1rem; color: var(--nebula); font-size: 0.82rem; text-decoration: none; }
+
+  /* ── Loading / Error ─────────────────────────────────────────── */
+  .loader { text-align: center; padding: 4rem; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--nebula);
+             border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 1rem; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .empty-state { text-align: center; padding: 3rem; color: var(--muted); }
+  .empty-state .icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .error-box { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 12px; padding: 1rem 1.25rem; color: #fca5a5; font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+  /* ── Footer ──────────────────────────────────────────────────── */
+  footer { border-top: 1px solid var(--border); padding: 1.5rem 2rem; text-align: center; color: var(--muted); font-size: 0.75rem; font-family: var(--font-mono); }
+
+  /* ── Responsive ──────────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    main { padding: 1rem; }
+    .iotd-image-wrap { width: 100%; min-height: 200px; }
+    .mission-name { min-width: 130px; font-size: 0.75rem; }
+    .stat-value { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Starfield -->
+<div id="starfield"></div>
+
+<div class="page">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🌌</div>
+      <div class="logo-text">
+        <h1>Space Observatory Monitor</h1>
+        <p>NASA · JWST · Hubble · Curiosity · Perseverance</p>
+      </div>
+    </div>
+    <div class="status-pill">
+      <div class="pulse"></div>
+      <span>LIVE — NASA Public API</span>
+    </div>
+  </header>
+
+  <!-- API Key Bar -->
+  <div class="api-bar">
+    <label>🔑 NASA API Key</label>
+    <input type="text" id="apiKey" placeholder="Enter your NASA API key (or leave blank for DEMO_KEY)" />
+    <button class="btn btn-primary" onclick="fetchAll()">🚀 Fetch Latest Images</button>
+    <a href="https://api.nasa.gov" target="_blank" class="btn btn-sm" style="background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);text-decoration:none;">Get Free Key ↗</a>
+  </div>
+
+  <main>
+    <div id="error-area"></div>
+
+    <!-- Stats Row -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card" style="--delay:0s; --accent: linear-gradient(90deg, #7c3aed, #4f46e5)">
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-label">Images Fetched</div>
+      </div>
+      <div class="stat-card" style="--delay:0.05s; --accent: linear-gradient(90deg, var(--gold), #f59e0b)">
+        <div class="stat-value" id="stat-top-score">—</div>
+        <div class="stat-label">Top Interest Score</div>
+      </div>
+      <div class="stat-card" style="--delay:0.1s; --accent: linear-gradient(90deg, #10b981, #34d399)">
+        <div class="stat-value" id="stat-missions">—</div>
+        <div class="stat-label">Missions Active</div>
+      </div>
+      <div class="stat-card" style="--delay:0.15s; --accent: linear-gradient(90deg, var(--mars), #ef4444)">
+        <div class="stat-value" id="stat-date">—</div>
+        <div class="stat-label">Run Date</div>
+      </div>
+    </div>
+
+    <!-- Image of the Day -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-title">⭐ Image of the Day</span>
+        <div class="section-line"></div>
+      </div>
+      <div id="iotd-area">
+        <div class="empty-state"><div class="icon">🔭</div><p>Press "Fetch Latest Images" to load data from NASA APIs.</p></div>
+      </div>
+    </div>
+
+    <!-- Mission Breakdown -->
+    <div class="section" id="section-missions" style="display:none">
+      <div class="section-header">
+        <span class="section-title">📡 Activity by Mission</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="mission-table" id="missions-table"></div>
+    </div>
+
+    <!-- Top Images Grid -->
+    <div class="section" id="section-grid" style="display:none">
+      <div class="section-header">
+        <span class="section-title">🏆 Highest-Interest Images</span>
+        <div class="section-line"></div>
+      </div>
+      <div class="image-grid" id="image-grid"></div>
+    </div>
+  </main>
+
+  <footer>Space Observatory Monitor · Powered by NASA Public APIs · Zero cost, zero login required</footer>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+/* ── Starfield ─────────────────────────────────────────────────── */
+(function() {
+  const sf = document.getElementById('starfield');
+  for (let i = 0; i < 160; i++) {
+    const s = document.createElement('div');
+    const size = Math.random() < 0.8 ? 1 : Math.random() < 0.7 ? 2 : 3;
+    const opacity = 0.1 + Math.random() * 0.7;
+    s.className = 'star';
+    s.style.cssText = `
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      width:${size}px;height:${size}px;
+      --o:${opacity};--d:${2+Math.random()*4}s;
+      animation-delay:${Math.random()*5}s;
+    `;
+    sf.appendChild(s);
+  }
+})();
+
+/* ── Category colours ──────────────────────────────────────────── */
+const CAT_COLORS = {
+  'Nebula': '#c084fc', 'Galaxy': '#818cf8', 'Deep Field': '#60a5fa',
+  'Black Hole': '#f43f5e', 'Star Cluster': '#fbbf24', 'Planet': '#34d399',
+  'Solar Activity': '#f97316', 'Mars Surface': '#ef4444', 'Other': '#64748b'
+};
+
+/* ── Scoring ───────────────────────────────────────────────────── */
+const MISSION_SCORES = {
+  'james webb': 25, 'jwst': 25, 'hubble': 20, 'apod': 15,
+  'perseverance': 12, 'curiosity': 10
+};
+const INSTRUMENT_SCORES = {
+  'nircam': 20, 'miri': 18, 'nirspec': 16, 'niriss': 14,
+  'wfc3': 14, 'acs': 12, 'mastcam-z': 8, 'mastcam': 6, 'navcam': 4
+};
+const SCI_KEYWORDS = ['dark matter','exoplanet','biosignature','black hole','neutron star',
+  'atmospheric','gravitational','supernova','quasar','primordial','stellar formation','habitab'];
+const NOVELTY = ['first ever','unprecedented','discovery','never before','record-breaking','breakthrough'];
+
+const CAT_RULES = [
+  ['Mars Surface',['mars surface','curiosity','perseverance','sol ','jezero','rover','martian']],
+  ['Nebula',['nebula','pillars','carina','orion','tarantula','stellar nursery','supernova remnant']],
+  ['Galaxy',['galaxy','galaxies','milky way','andromeda','spiral','galactic','quasar']],
+  ['Star Cluster',['star cluster','globular','open cluster','pleiades']],
+  ['Planet',['planet','jupiter','saturn','venus','mercury','uranus','neptune','exoplanet']],
+  ['Solar Activity',['solar','corona','flare','sunspot','aurora']],
+  ['Black Hole',['black hole','event horizon','accretion']],
+  ['Deep Field',['deep field','deep sky','ultra deep']],
+];
+
+function categorize(img) {
+  const t = [img.title||'', img.explanation||img.description||'', img.camera||''].join(' ').toLowerCase();
+  for (const [cat, kws] of CAT_RULES) if (kws.some(k => t.includes(k))) return cat;
+  return 'Other';
+}
+
+function scoreImage(img, category) {
+  const t = [img.title||'', img.explanation||img.description||'', img.camera||'', img.mission||''].join(' ').toLowerCase();
+  let total = 0;
+
+  // Mission
+  for (const [k,v] of Object.entries(MISSION_SCORES)) if (t.includes(k) || (img.mission||'').toLowerCase().includes(k)) { total+=v; break; }
+  // Instrument
+  for (const [k,v] of Object.entries(INSTRUMENT_SCORES)) if (t.includes(k) || (img.camera||'').toLowerCase().includes(k)) { total+=v; break; }
+  // Science keywords (0-20)
+  total += Math.min(SCI_KEYWORDS.filter(k=>t.includes(k)).length * 3, 20);
+  // Caption richness (0-15)
+  const cl = (img.explanation||img.description||'').length;
+  total += cl>800?15:cl>400?10:cl>150?6:cl>50?3:0;
+  // Category bonus
+  const cb = {Nebula:10,Galaxy:10,'Deep Field':10,'Black Hole':9,'Star Cluster':7,Planet:6,'Solar Activity':5,'Mars Surface':4,Other:0};
+  total += cb[category]||0;
+  // Novelty (0-10)
+  total += Math.min(NOVELTY.filter(k=>t.includes(k)).length * 3, 10);
+
+  return Math.round(Math.min(100, (total/100)*100));
+}
+
+/* ── API Fetch ─────────────────────────────────────────────────── */
+let allImages = [];
+
+async function fetchAll() {
+  const key = document.getElementById('apiKey').value.trim() || 'DEMO_KEY';
+  showError('');
+  showLoader();
+
+  try {
+    const [apod, curiosity, perseverance] = await Promise.allSettled([
+      fetchAPOD(key),
+      fetchRover(key, 'curiosity'),
+      fetchRover(key, 'perseverance'),
+    ]);
+
+    let images = [];
+    if (apod.status === 'fulfilled') images.push(...apod.value);
+    else console.warn('APOD failed:', apod.reason);
+
+    if (curiosity.status === 'fulfilled') images.push(...curiosity.value);
+    if (perseverance.status === 'fulfilled') images.push(...perseverance.value);
+
+    if (!images.length) throw new Error('No images returned. Check your API key or try again.');
+
+    // Enrich & score
+    images = images.map(img => {
+      const category = categorize(img);
+      const score = scoreImage(img, category);
+      return { ...img, category, score };
+    }).sort((a,b) => b.score - a.score);
+
+    allImages = images;
+    render(images);
+  } catch(e) {
+    showError(e.message || 'Failed to fetch from NASA APIs. Please check your API key.');
+    hideLoader();
+  }
+}
+
+async function fetchAPOD(key) {
+  const res = await fetch(`https://api.nasa.gov/planetary/apod?api_key=${key}&count=8&thumbs=true`);
+  if (!res.ok) throw new Error(`APOD API error: ${res.status}`);
+  const data = await res.json();
+  return (Array.isArray(data) ? data : [data])
+    .filter(d => d.media_type === 'image')
+    .map(d => ({
+      id: 'apod_' + d.date,
+      mission: 'NASA APOD',
+      title: d.title || 'APOD Image',
+      description: d.explanation || '',
+      explanation: d.explanation || '',
+      image_url: d.hdurl || d.url || '',
+      thumb: d.thumbnail_url || d.url || '',
+      date: d.date,
+      camera: d.copyright || 'NASA',
+    }));
+}
+
+async function fetchRover(key, rover) {
+  const res = await fetch(`https://api.nasa.gov/mars-photos/api/v1/rovers/${rover}/latest_photos?api_key=${key}`);
+  if (!res.ok) throw new Error(`${rover} API error: ${res.status}`);
+  const data = await res.json();
+  return (data.latest_photos || []).slice(0, 12).map(p => ({
+    id: `${rover}_${p.id}`,
+    mission: `Mars ${rover.charAt(0).toUpperCase()+rover.slice(1)} Rover`,
+    title: `${p.camera?.full_name || p.camera?.name || 'Camera'} — Sol ${p.sol}`,
+    description: `${p.camera?.full_name || ''} image from Sol ${p.sol} (${p.earth_date}). Rover: ${p.rover?.name}. Status: ${p.rover?.status}.`,
+    image_url: p.img_src || '',
+    thumb: p.img_src || '',
+    date: p.earth_date || '',
+    camera: p.camera?.full_name || p.camera?.name || '',
+    sol: p.sol,
+  }));
+}
+
+/* ── Render ────────────────────────────────────────────────────── */
+function render(images) {
+  hideLoader();
+
+  // Stats
+  const missions = [...new Set(images.map(i => i.mission))];
+  document.getElementById('stat-total').textContent = images.length;
+  document.getElementById('stat-top-score').textContent = images[0]?.score ?? '—';
+  document.getElementById('stat-missions').textContent = missions.length;
+  document.getElementById('stat-date').textContent = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric'});
+
+  // IOTD
+  renderIOTD(images[0]);
+
+  // Missions
+  const missionCounts = {};
+  images.forEach(img => missionCounts[img.mission] = (missionCounts[img.mission]||0)+1);
+  const maxCount = Math.max(...Object.values(missionCounts));
+  document.getElementById('missions-table').innerHTML = Object.entries(missionCounts)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([m,c]) => `
+      <div class="mission-row">
+        <div class="mission-name">${m}</div>
+        <div class="mission-bar-wrap"><div class="mission-bar-fill" style="width:${(c/maxCount*100).toFixed(0)}%"></div></div>
+        <div class="mission-count">${c}</div>
+      </div>`).join('');
+  document.getElementById('section-missions').style.display = '';
+
+  // Image grid (top 12)
+  document.getElementById('image-grid').innerHTML = images.slice(0, 12).map((img, i) => {
+    const color = CAT_COLORS[img.category] || '#64748b';
+    const delay = (i * 0.05).toFixed(2);
+    return `
+      <div class="img-card" style="--d:${delay}s" onclick="openModal(${i})">
+        ${img.image_url
+          ? `<img class="img-thumb" src="${img.image_url}" alt="${escHtml(img.title)}" loading="lazy" onerror="this.outerHTML='<div class=\\'img-thumb-placeholder\\'>🔭</div>'">`
+          : `<div class="img-thumb-placeholder">🔭</div>`}
+        <div class="img-body">
+          <div class="img-top">
+            <div class="img-title">${escHtml(img.title)}</div>
+            <div class="score-badge">${img.score}/100</div>
+          </div>
+          <div class="img-mission">${escHtml(img.mission)}</div>
+          <div class="img-footer">
+            <div class="category-dot">
+              <div class="dot" style="background:${color}"></div>
+              <span>${img.category}</span>
+            </div>
+            <div class="img-date">${img.date || '—'}</div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  document.getElementById('section-grid').style.display = '';
+}
+
+function renderIOTD(img) {
+  if (!img) return;
+  const color = CAT_COLORS[img.category] || '#64748b';
+  const cap = (img.explanation || img.description || '').slice(0, 400);
+  document.getElementById('iotd-area').innerHTML = `
+    <div class="iotd-card">
+      <div class="iotd-image-wrap">
+        <div class="iotd-badge">⭐ Image of the Day</div>
+        ${img.image_url
+          ? `<img src="${img.image_url}" alt="${escHtml(img.title)}" onerror="this.outerHTML='<div class=\\'no-img\\'>🔭</div>'">`
+          : `<div class="no-img">🔭</div>`}
+      </div>
+      <div class="iotd-body">
+        <div class="iotd-meta">
+          <span class="tag accent">${img.category}</span>
+          <span class="tag">${escHtml(img.mission)}</span>
+          <span class="tag">${img.date || '—'}</span>
+          ${img.camera ? `<span class="tag">${escHtml(img.camera)}</span>` : ''}
+          ${img.sol != null ? `<span class="tag">Sol ${img.sol}</span>` : ''}
+        </div>
+        <div class="iotd-title">${escHtml(img.title)}</div>
+        <div class="iotd-caption">${escHtml(cap)}${(img.explanation||'').length>400?'…':''}</div>
+        <div class="score-bar-wrap">
+          <div class="score-bar-label"><span>Interest Score</span><span>${img.score}/100</span></div>
+          <div class="score-bar"><div class="score-fill" id="iotd-fill" style="width:0%"></div></div>
+        </div>
+        ${img.image_url ? `<a class="iotd-link" href="${img.image_url}" target="_blank">View full resolution →</a>` : ''}
+      </div>
+    </div>`;
+  setTimeout(() => {
+    const fill = document.getElementById('iotd-fill');
+    if (fill) fill.style.width = img.score + '%';
+  }, 100);
+}
+
+/* ── Modal ─────────────────────────────────────────────────────── */
+function openModal(idx) {
+  const img = allImages[idx];
+  if (!img) return;
+  const color = CAT_COLORS[img.category] || '#64748b';
+  document.getElementById('modal-body').innerHTML = `
+    ${img.image_url ? `<img class="modal-img" src="${img.image_url}" alt="${escHtml(img.title)}" onerror="this.style.display='none'">` : ''}
+    <div style="padding-top:${img.image_url?'0':'1.5rem'}">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">${escHtml(img.title)}</div>
+      <div class="modal-meta">
+        <span class="tag accent">${img.category}</span>
+        <span class="tag">${escHtml(img.mission)}</span>
+        <span class="tag">Score: ${img.score}/100</span>
+        <span class="tag">${img.date || '—'}</span>
+        ${img.camera ? `<span class="tag">${escHtml(img.camera)}</span>` : ''}
+        ${img.sol != null ? `<span class="tag">Sol ${img.sol}</span>` : ''}
+      </div>
+      <div class="modal-caption">${escHtml(img.explanation || img.description || 'No description available.')}</div>
+      ${img.image_url ? `<a class="modal-link" href="${img.image_url}" target="_blank">🔗 Open full resolution image</a>` : ''}
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e) {
+  if (e && e.target !== document.getElementById('modal-overlay')) return;
+  document.getElementById('modal-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+/* ── Helpers ───────────────────────────────────────────────────── */
+function showLoader() {
+  document.getElementById('iotd-area').innerHTML = `<div class="loader"><div class="spinner"></div><p style="color:var(--muted);font-size:0.85rem">Contacting NASA APIs…</p></div>`;
+  document.getElementById('section-missions').style.display = 'none';
+  document.getElementById('section-grid').style.display = 'none';
+}
+function hideLoader() {}
+function showError(msg) {
+  document.getElementById('error-area').innerHTML = msg
+    ? `<div class="error-box">⚠️ ${escHtml(msg)}</div>` : '';
+}
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
