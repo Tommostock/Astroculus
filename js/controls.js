@@ -5,21 +5,31 @@
 
 let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
+let lastHoverUpdate = 0;
 
 function setupControls(container, camera) {
+  // Validate inputs
+  if (!camera || !appState.scene) {
+    console.error('Camera or scene not initialized');
+    return;
+  }
+
   // Mouse drag to rotate camera
-  document.addEventListener('mousedown', (e) => {
+  const onMouseDown = (e) => {
     isDragging = true;
     previousMousePosition = { x: e.clientX, y: e.clientY };
-  });
+  };
 
-  document.addEventListener('mousemove', (e) => {
+  const onMouseMove = (e) => {
+    // Drag handling
     if (isDragging) {
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
 
       // Rotate camera around scene center
       const radius = camera.position.length();
+      if (radius < 0.1) return; // Prevent gimbal lock
+
       const theta = Math.atan2(camera.position.z, camera.position.x) + deltaX * 0.005;
       const phi = Math.acos(camera.position.y / radius) + deltaY * 0.005;
 
@@ -34,7 +44,25 @@ function setupControls(container, camera) {
 
       previousMousePosition = { x: e.clientX, y: e.clientY };
     }
-  });
+
+    // Hover label handling (throttled to prevent excessive raycasting)
+    if (!isDragging && Date.now() - (lastHoverUpdate || 0) > 100) {
+      const intersected = getIntersectedObject(e, camera, appState.scene);
+      if (intersected) {
+        Object.keys(appState.planets).forEach(name => {
+          if (appState.planets[name].mesh === intersected) {
+            updateLabelOnHover(name, e);
+          }
+        });
+      } else {
+        hideLabelOnMouseOut();
+      }
+      lastHoverUpdate = Date.now();
+    }
+  };
+
+  document.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('mousemove', onMouseMove);
 
   document.addEventListener('mouseup', () => {
     isDragging = false;
@@ -118,17 +146,6 @@ function setupControls(container, camera) {
     }
   });
 
-  // Mouse over for labels
-  document.addEventListener('mousemove', (e) => {
-    const intersected = getIntersectedObject(e, camera, appState.scene);
-    if (intersected) {
-      Object.keys(appState.planets).forEach(name => {
-        if (appState.planets[name].mesh === intersected) {
-          updateLabelOnHover(name, e);
-        }
-      });
-    }
-  });
 }
 
 /**

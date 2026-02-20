@@ -14,7 +14,9 @@ const appState = {
   renderer: null,
   planets: {},
   orbits: {},
-  trails: {}
+  trails: {},
+  labelsVisible: false,
+  trailsVisible: false
 };
 
 /**

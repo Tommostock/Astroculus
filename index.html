@@ -23,6 +23,13 @@
 
   <!-- Three.js Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    if (!window.THREE) {
+      console.error('Three.js failed to load from CDN');
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:Arial"><div style="text-align:center"><h1>Error Loading Application</h1><p>Failed to load Three.js library from CDN.</p><p>Please check your internet connection and refresh the page.</p></div></div>';
+      throw new Error('Three.js library not loaded');
+    }
+  </script>
 
   <!-- Load Scripts in Order -->
   <!-- 1. Data -->

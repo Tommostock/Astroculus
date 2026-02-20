@@ -59,27 +59,45 @@ function createUI() {
   div.innerHTML = uiHTML;
   container.appendChild(div);
 
-  // Setup event listeners
-  document.getElementById('close-panel').addEventListener('click', () => {
-    appState.selectedBody = null;
-    updateUISelection();
-  });
+  // Setup event listeners with null checks
+  const closePanel = document.getElementById('close-panel');
+  if (closePanel) {
+    closePanel.addEventListener('click', () => {
+      appState.selectedBody = null;
+      updateUISelection();
+    });
+  }
 
-  document.getElementById('reset-btn').addEventListener('click', () => {
-    resetCamera(appState.camera);
-    appState.selectedBody = null;
-    updateUISelection();
-  });
+  const resetBtn = document.getElementById('reset-btn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      resetCamera(appState.camera);
+      appState.selectedBody = null;
+      updateUISelection();
+    });
+  }
 
-  document.getElementById('scale-btn').addEventListener('click', switchScaleMode);
+  const scaleBtn = document.getElementById('scale-btn');
+  if (scaleBtn) {
+    scaleBtn.addEventListener('click', switchScaleMode);
+  }
 
-  document.getElementById('anim-btn').addEventListener('click', toggleAnimation);
+  const animBtn = document.getElementById('anim-btn');
+  if (animBtn) {
+    animBtn.addEventListener('click', toggleAnimation);
+  }
 
-  document.getElementById('speed-slider').addEventListener('input', (e) => {
-    const speed = parseFloat(e.target.value);
-    setAnimationSpeed(speed);
-    document.getElementById('speed-label').textContent = speed.toFixed(1) + 'x';
-  });
+  const speedSlider = document.getElementById('speed-slider');
+  if (speedSlider) {
+    speedSlider.addEventListener('input', (e) => {
+      const speed = parseFloat(e.target.value);
+      setAnimationSpeed(speed);
+      const speedLabel = document.getElementById('speed-label');
+      if (speedLabel) {
+        speedLabel.textContent = speed.toFixed(1) + 'x';
+      }
+    });
+  }
 }
 
 /**
@@ -88,6 +106,11 @@ function createUI() {
 function updateUISelection() {
   const panel = document.getElementById('info-panel');
   const body = appState.selectedBody;
+
+  if (!panel) {
+    console.error('Info panel element not found');
+    return;
+  }
 
   if (!body) {
     panel.classList.add('hidden');
@@ -99,23 +122,27 @@ function updateUISelection() {
   const name = body.name || body.data.name;
   const data = body.data;
 
-  document.getElementById('body-name').textContent = name;
-  document.getElementById('body-type').textContent = data.type.charAt(0).toUpperCase() + data.type.slice(1);
-  document.getElementById('body-radius').textContent = formatNumber(data.radius) + ' km';
+  const nameEl = document.getElementById('body-name');
+  if (nameEl) nameEl.textContent = name;
 
-  if (data.orbitDistance) {
-    document.getElementById('body-distance').textContent = formatDistance(data.orbitDistance);
-  } else {
-    document.getElementById('body-distance').textContent = '-';
+  const typeEl = document.getElementById('body-type');
+  if (typeEl) typeEl.textContent = data.type.charAt(0).toUpperCase() + data.type.slice(1);
+
+  const radiusEl = document.getElementById('body-radius');
+  if (radiusEl) radiusEl.textContent = formatNumber(data.radius) + ' km';
+
+  const distEl = document.getElementById('body-distance');
+  if (distEl) {
+    distEl.textContent = data.orbitDistance ? formatDistance(data.orbitDistance) : '-';
   }
 
-  if (data.orbitPeriod) {
-    document.getElementById('body-period').textContent = formatPeriod(data.orbitPeriod);
-  } else {
-    document.getElementById('body-period').textContent = '-';
+  const periodEl = document.getElementById('body-period');
+  if (periodEl) {
+    periodEl.textContent = data.orbitPeriod ? formatPeriod(data.orbitPeriod) : '-';
   }
 
-  document.getElementById('body-description').textContent = data.description || '-';
+  const descEl = document.getElementById('body-description');
+  if (descEl) descEl.textContent = data.description || '-';
 }
 
 /**

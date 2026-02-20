@@ -27,7 +27,8 @@ canvas {
 /* Info Panel */
 .info-panel {
   position: fixed;
-  bottom-right: 20px;
+  bottom: 20px;
+  right: 20px;
   width: 350px;
   max-height: 90vh;
   background: rgba(15, 12, 22, 0.95);
@@ -118,7 +119,8 @@ canvas {
 /* Control Panel */
 .control-panel {
   position: fixed;
-  top-left: 20px;
+  top: 20px;
+  left: 20px;
   background: rgba(15, 12, 22, 0.95);
   border: 1px solid rgba(61, 159, 191, 0.2);
   border-radius: 8px;
